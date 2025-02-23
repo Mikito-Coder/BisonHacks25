@@ -8,9 +8,7 @@ const loadingStates = [
   { text: "Connecting neural networks" },
   { text: "Initializing AI models" },
   { text: "Preparing data streams" },
-  { text: "Syncing with cloud" },
   { text: "Optimizing performance" },
-  { text: "Almost there" },
   { text: "Welcome to Autonomy" },
 ];
 
@@ -28,9 +26,9 @@ export default function LoadingPage() {
 
   return (
     <div className="w-full h-[60vh] flex items-center justify-center">
-      <Loader 
-        loadingStates={loadingStates} 
-        loading={true} 
+      <Loader
+        loadingStates={loadingStates}
+        loading={true}
         duration={2000}
         loop={false}
       />

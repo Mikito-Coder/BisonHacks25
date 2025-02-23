@@ -4,6 +4,35 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AudioLines, ArrowUp } from "lucide-react";
 import '@/styles/chat.scss';
 
+// Define proper types for Speech Recognition
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionError extends Event {
+  error: string;
+  message: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionError) => void;
+}
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition: new () => SpeechRecognition;
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
 interface Message {
   id: string;
   content: string;
@@ -19,6 +48,14 @@ export default function ChatInterface() {
   const [isProcessing, setIsProcessing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // Add audio refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const audioQueue = useRef<ArrayBuffer[]>([]);
+  const isPlayingAudio = useRef<boolean>(false);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,6 +71,86 @@ export default function ChatInterface() {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [inputValue]);
+
+  // Add speech recognition setup and cleanup
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  // Initialize WebSocket and Audio Context
+  useEffect(() => {
+    // Initialize WebSocket
+    wsRef.current = new WebSocket('ws://localhost:8555/ws');
+
+    // Initialize Audio Context
+    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    gainNodeRef.current = audioContextRef.current.createGain();
+    gainNodeRef.current.connect(audioContextRef.current.destination);
+
+    // WebSocket event handlers
+    wsRef.current.onmessage = async (event) => {
+      const data = await event.data.arrayBuffer();
+      audioQueue.current.push(data);
+
+      if (!isPlayingAudio.current) {
+        playNextAudioChunk();
+      }
+    };
+
+    return () => {
+      wsRef.current?.close();
+      audioContextRef.current?.close();
+    };
+  }, []);
+
+  const playNextAudioChunk = async () => {
+    if (!audioContextRef.current || !gainNodeRef.current) return;
+
+    if (audioQueue.current.length === 0) {
+      isPlayingAudio.current = false;
+      return;
+    }
+
+    isPlayingAudio.current = true;
+    const audioData = audioQueue.current.shift()!;
+
+    try {
+      const audioBuffer = await audioContextRef.current.decodeAudioData(audioData);
+      const sourceNode = audioContextRef.current.createBufferSource();
+      sourceNode.buffer = audioBuffer;
+      sourceNode.connect(gainNodeRef.current);
+      sourceNode.start();
+      sourceNode.onended = playNextAudioChunk;
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      playNextAudioChunk(); // Continue with next chunk if there's an error
+    }
+  };
+
+  const startSpeechRecognition = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.continuous = true;
+    recognitionRef.current.interimResults = true;
+
+    recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join(" ");
+      setInputValue(transcript);
+    };
+
+    recognitionRef.current.onerror = (event: SpeechRecognitionError) => {
+      console.error('Speech recognition error:', event.error);
+      handleStopRecording();
+    };
+
+    recognitionRef.current.start();
+  };
 
   const handleNewMessage = async (content: string) => {
     if (!content.trim()) return;
@@ -51,7 +168,10 @@ export default function ChatInterface() {
     setIsProcessing(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send message to WebSocket server
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ text: content }));
+      }
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -71,13 +191,15 @@ export default function ChatInterface() {
   const handleStartRecording = () => {
     setIsRecording(true);
     setIsProcessing(true);
-    // Add your recording logic here
+    startSpeechRecognition();
   };
 
   const handleStopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
     setIsRecording(false);
     setIsProcessing(false);
-    // Add your stop recording logic here
   };
 
   return (
