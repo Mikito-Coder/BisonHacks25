@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AudioLines, ArrowUp } from "lucide-react";
 import '@/styles/chat.scss';
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 // Define proper types for Speech Recognition
 interface SpeechRecognitionEvent extends Event {
@@ -57,6 +59,14 @@ export default function ChatInterface() {
   const isPlayingAudio = useRef<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
 
+  const placeholders = [
+    "Ask me anything...",
+    "What would you like to know?",
+    "Type your question here...",
+    "I'm here to help...",
+  ];
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -72,7 +82,6 @@ export default function ChatInterface() {
     }
   }, [inputValue]);
 
-  // Add speech recognition setup and cleanup
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -81,9 +90,7 @@ export default function ChatInterface() {
     };
   }, []);
 
-  // Initialize WebSocket and Audio Context
   useEffect(() => {
-    // Initialize WebSocket
     wsRef.current = new WebSocket('ws://localhost:8555/ws');
 
     // Initialize Audio Context
@@ -105,6 +112,14 @@ export default function ChatInterface() {
       wsRef.current?.close();
       audioContextRef.current?.close();
     };
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const playNextAudioChunk = async () => {
@@ -225,20 +240,39 @@ export default function ChatInterface() {
                     <AudioLines size={20} />
                   </div>
                 )}
-                <textarea
-                  ref={textareaRef}
-                  placeholder={isRecording ? "Recording..." : "Type your message..."}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleNewMessage(inputValue);
-                    }
-                  }}
-                  rows={1}
-                  style={{ overflow: "hidden", resize: "none" }}
-                />
+                <div className="relative w-full">
+                  <textarea
+                    ref={textareaRef}
+                    placeholder={isRecording ? "Recording..." : ""}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleNewMessage(inputValue);
+                      }
+                    }}
+                    className={cn(
+                      "w-full resize-none bg-transparent outline-none p-2",
+                      isRecording || isProcessing ? "blurred" : ""
+                    )}
+                    rows={1}
+                    style={{ overflow: "hidden" }}
+                  />
+                  <AnimatePresence>
+                    {!inputValue && !isRecording && (
+                      <motion.span
+                        className="absolute left-0 top-0 text-gray-400 pointer-events-none p-2 w-full"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {placeholders[placeholderIndex]}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
               <button
                 onClick={() => handleNewMessage(inputValue)}

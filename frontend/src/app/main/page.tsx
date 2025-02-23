@@ -13,7 +13,7 @@ export default function MainPage() {
 
       {/* Chat Interface Overlay */}
       <div className="relative z-10 h-full w-1/3 p-4">
-        <div className="h-full rounded-xl border border-cyan-500/10 bg-black/10 backdrop-blur-sm shadow-[0_0_15px_rgba(34,211,238,0.1)] overflow-hidden">
+        <div className="h-full rounded-xl border border-cyan-500/10 bg-slate-950/[0.1] backdrop-blur-[1px] shadow-[0_0_15px_rgba(34,211,238,0.05)] overflow-hidden">
           <div className="w-full h-full bg-gradient-to-b from-cyan-500/10 to-transparent">
             <ChatInterface />
           </div>
