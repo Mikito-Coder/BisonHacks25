@@ -5,12 +5,19 @@ import KnowledgeGraph from "@/components/graph/knowledge-graph";
 
 export default function MainPage() {
   return (
-    <main className="flex h-screen">
-      <div className="h-full border-gray-700">
-        <ChatInterface />
-      </div>
-      <div className="w-2/3 h-full">
+    <main className="fixed inset-0 w-full h-screen overflow-hidden">
+      {/* Knowledge Graph Layer - Full Screen */}
+      <div className="absolute inset-0">
         <KnowledgeGraph />
+      </div>
+
+      {/* Chat Interface Overlay */}
+      <div className="relative z-10 h-full w-1/3 p-4">
+        <div className="h-full rounded-xl border border-cyan-500/10 bg-black/10 backdrop-blur-sm shadow-[0_0_15px_rgba(34,211,238,0.1)] overflow-hidden">
+          <div className="w-full h-full bg-gradient-to-b from-cyan-500/10 to-transparent">
+            <ChatInterface />
+          </div>
+        </div>
       </div>
     </main>
   );
