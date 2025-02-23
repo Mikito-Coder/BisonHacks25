@@ -190,16 +190,16 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
 
         // Make node bigger and start pulsing
         node.val = 100;
-
+        
         let frame = 0;
         const animate = () => {
           frame++;
           const scale = 1.5 + Math.sin(frame * 0.1) * 0.3;
-
+          
           if (node.__threeObj) {
             node.__threeObj.scale.set(scale, scale, scale);
           }
-
+          
           if (frame < 120) { // 2 seconds at 60fps
             requestAnimationFrame(animate);
           } else {
@@ -218,7 +218,7 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
       if (!nodeIds.length) return;
 
       // Find the main article node (first one)
-      const mainNode = graphData.nodes.find(node =>
+      const mainNode = graphData.nodes.find(node => 
         nodeIds.includes(node.id) && node.type === 'article'
       );
 
@@ -362,7 +362,7 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
             onNodeClick={handleClick}
             nodeColor={getNodeColor}
             linkColor={(link: any) => colors.link[link.type === 'article-topic' ? 'topic' : 'source']}
-            linkWidth={focusedNode ? 0.4 : 0.8}
+            linkWidth={focusedNode ? 0.2 : 0.6}
             backgroundColor={colors.background}
             nodeVal={node => (highlightedNodes.has(node.id) ? 60 : node.val || 40)}
             nodeResolution={16} // Higher resolution for smoother nodes
