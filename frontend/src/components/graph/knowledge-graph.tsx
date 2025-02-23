@@ -345,53 +345,91 @@ const data = {
   };
 
 
-const KnowledgeGraph: React.FC = () => {
-const graphRef = useRef<any>(null);
-
-useEffect(() => {
-    const graph = new ForceGraph3D()(graphRef.current)
-    .graphData(data)
-    .nodeLabel('id')
-    .nodeAutoColorBy('group')
-    .nodeThreeObject(node => {
-        const geometry = new THREE.SphereGeometry(node.val || 8, 32, 32);
-        const material = new THREE.MeshBasicMaterial({ color: node.color });
-        const sphere = new THREE.Mesh(geometry, material);
-        
-        const sprite = new SpriteText(node.id);
-        sprite.color = 'white';
-        sprite.textHeight = 8;
-        sphere.add(sprite);
-        
-        return sphere;
-    })
-    .linkDirectionalParticles(link => link.value) // Add particles based on link value
-    .linkDirectionalParticleWidth(link => link.value * 0.05) // Adjust particle width based on link value
-    .linkDirectionalParticleColor(() => 'rgba(255, 255, 255, 0.5)') // Set particle color
-    .linkOpacity(0.2) // Reduce link opacity for better visibility of particles
-    .backgroundColor('#000011')
-    .linkThreeObjectExtend(true)
-    .linkThreeObject(link => {
-        const sprite = new SpriteText(`${link.source.id} > ${link.target.id}`);
-        sprite.color = 'lightgrey';
-        sprite.textHeight = 1.5;
-        return sprite;
-    })
-    .linkPositionUpdate((sprite, { start, end }) => {
-        const middlePos = {
-        x: start.x + (end.x - start.x) / 2,
-        y: start.y + (end.y - start.y) / 2,
-        z: start.z + (end.z - start.z) / 2
-        };
-        Object.assign(sprite.position, middlePos);
-    });
-
-    return () => {
-    graph._destructor();
-    };
-}, []);
-
-return <div ref={graphRef} style={{ width: '100%', height: '500px' }} />;
-};
+  const KnowledgeGraph: React.FC = () => {
+    const graphRef = useRef<any>(null);
+  
+    useEffect(() => {
+      // Performance optimization settings
+      const PARTICLE_SIZE = 4;
+      const NODE_SIZE = 8;
+      
+      const graph = new ForceGraph3D()(graphRef.current)
+        .graphData(data)
+        .nodeLabel(node => `${node.id}: ${node.description}`)
+        .nodeAutoColorBy('group')
+        .nodeThreeObject(node => {
+          // Only create detailed nodes for nodes with high value or importance
+          if (node.val > 10) {
+            const geometry = new THREE.SphereGeometry(node.val / 2, 16, 16);
+            const material = new THREE.MeshBasicMaterial({ color: node.color });
+            const sphere = new THREE.Mesh(geometry, material);
+            
+            const sprite = new SpriteText(node.id);
+            sprite.color = 'white';
+            sprite.textHeight = 8;
+            sphere.add(sprite);
+            
+            return sphere;
+          }
+          
+          // Use simple spheres for other nodes
+          const sprite = new SpriteText(node.id);
+          sprite.color = 'white';
+          sprite.textHeight = 4;
+          return sprite;
+        })
+        .linkDirectionalParticles(link => Math.min(link.value || 1, 4))
+        .linkDirectionalParticleWidth(link => Math.min((link.value || 1) * 0.05, 0.5))
+        .linkDirectionalParticleColor(() => 'rgba(255, 255, 255, 0.5)')
+        .linkOpacity(0.2)
+        .backgroundColor('#000011')
+        .linkThreeObjectExtend(true)
+        .linkThreeObject(link => {
+          if (link.value > 3) {  // Only show labels for important links
+            const sprite = new SpriteText(`${link.source.id} > ${link.target.id}`);
+            sprite.color = 'lightgrey';
+            sprite.textHeight = 1.5;
+            return sprite;
+          }
+          return null;
+        })
+        .linkPositionUpdate((sprite, { start, end }) => {
+          if (sprite) {
+            const middlePos = {
+              x: start.x + (end.x - start.x) / 2,
+              y: start.y + (end.y - start.y) / 2,
+              z: start.z + (end.z - start.z) / 2
+            };
+            Object.assign(sprite.position, middlePos);
+          }
+        })
+        .d3AlphaDecay(0.02)
+        .d3VelocityDecay(0.3)
+        .warmupTicks(50)
+        .cooldownTicks(50)
+        .onNodeClick(node => {
+          console.log('Clicked node:', node);
+        });
+  
+      // Add force charge configuration for better spacing
+      graph.d3Force('charge').strength(-120);
+  
+      // Clean up
+      return () => {
+        graph._destructor();
+      };
+    }, []);
+  
+    return (
+      <div 
+        ref={graphRef} 
+        style={{ 
+          width: '100%', 
+          height: '100vh',
+          background: '#000011'
+        }} 
+      />
+    );
+  };
 
 export default KnowledgeGraph;
