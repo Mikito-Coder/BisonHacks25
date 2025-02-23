@@ -44,7 +44,7 @@ export function LandingPage() {
           }}
           className="text-center text-2xl md:text-3xl flex items-center gap-2"
         >
-          <span className="text-slate-300">from noise to clarity to</span>
+          <span className="text-slate-300">fastest way to</span>
           <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 bg-clip-text text-transparent">
             <FlipWords words={words} />
           </div>

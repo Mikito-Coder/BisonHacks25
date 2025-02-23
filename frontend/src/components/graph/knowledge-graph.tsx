@@ -39,14 +39,14 @@ interface GraphData {
 
 const colors = {
   background: '#030712',
-  article: '#FF6B6B',     // For news articles
-  topic: '#4ADE80',       // For topics
-  source: '#60A5FA',      // For news sources
-  highlight: '#FDE047',   // For highlights
-  text: '#FFFFFF',        // White text
+  article: '#FF6B6B',    
+  topic: '#4ADE80',  
+  source: '#60A5FA',      
+  highlight: '#FDE047',   
+  text: '#FFFFFF',      
   link: {
-    topic: 'rgba(74, 222, 128, 0.6)',
-    source: 'rgba(96, 165, 250, 0.6)'
+    topic: 'rgba(245, 245, 222, 0.6)',
+    source: 'rgba(100, 27, 23, 0.8)'
   }
 } as const;
 
@@ -187,13 +187,8 @@ export default function KnowledgeGraph() {
             if (!isTextMode && node.type !== 'article') return null;
 
             const sprite = new SpriteText(node.name);
-            sprite.color = colors.text; // Always white text
+            sprite.color = colors.text;
             sprite.textHeight = node.type === 'article' ? 8 : 12;
-            sprite.backgroundColor =
-              focusedNode?.id === node.id ? 'rgba(253, 224, 71, 0.3)' :
-                node.type === 'article' ? 'rgba(255, 107, 107, 0.2)' :
-                  node.type === 'topic' ? 'rgba(74, 222, 128, 0.2)' :
-                    'rgba(96, 165, 250, 0.2)';
             return sprite;
           }}
           nodeAutoColorBy="type"
@@ -205,7 +200,7 @@ export default function KnowledgeGraph() {
             return colors[node.type] || colors.text;
           }}
           linkColor={(link: any) => colors.link[link.type === 'article-topic' ? 'topic' : 'source']}
-          linkWidth={focusedNode ? 0.2 : 0.6}
+          linkWidth={focusedNode ? 0.4 : 0.8}
           backgroundColor={colors.background}
         />
       </div>
