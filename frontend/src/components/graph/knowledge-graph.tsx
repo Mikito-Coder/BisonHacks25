@@ -194,18 +194,18 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
           const elapsedTime = Date.now() - startTime;
           if (elapsedTime < 2000) { // 2 second animation
             const scale = 1.5 + Math.sin(elapsedTime * 0.01) * 0.3;
-            
+
             // Update node size
             node.val = 100 * scale;
-            
+
             // Update node visual
             if (node.__threeObj) {
               node.__threeObj.scale.set(scale, scale, scale);
             }
-            
+
             // Force graph update
             fgRef.current?.refresh();
-            
+
             requestAnimationFrame(animate);
           } else {
             // Reset node after animation
@@ -223,8 +223,8 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
       if (!nodeIds.length) return;
 
       // Find the article node
-      const articleNode = graphData.nodes.find(node => 
-        nodeIds.includes(node.id) && 
+      const articleNode = graphData.nodes.find(node =>
+        nodeIds.includes(node.id) &&
         node.type === 'article'
       );
 

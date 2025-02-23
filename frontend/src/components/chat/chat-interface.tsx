@@ -43,12 +43,12 @@ interface Message {
   type: 'user' | 'bot';
   timestamp: Date;
   status?: 'sending' | 'sent' | 'error';
-  summary?: {
+  summaries?: Array<{
     title: string;
     content: string;
     source: string;
     topics: string[];
-  };
+  }>;
 }
 
 interface ChatInterfaceProps {
@@ -138,8 +138,17 @@ export default function ChatInterface({ onHighlightNodes, graphData = data }: Ch
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setSpeechSynthesis(window.speechSynthesis);
+    if ('speechSynthesis' in window) {
+      // Load voices
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          setSpeechSynthesis(window.speechSynthesis);
+        }
+      };
+
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
     }
   }, []);
 
@@ -188,12 +197,71 @@ export default function ChatInterface({ onHighlightNodes, graphData = data }: Ch
     recognitionRef.current.start();
   };
 
-  const speakText = useCallback((text: string) => {
-    if (speechSynthesis) {
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
       const utterance = new SpeechSynthesisUtterance(text);
-      speechSynthesis.speak(utterance);
+
+      // Optimize speech parameters for natural sound
+      utterance.rate = 0.9;      // Slightly slower for clarity
+      utterance.pitch = 1.0;     // Natural pitch
+      utterance.volume = 1.0;    // Full volume
+
+      // Get available voices and find the best one
+      const voices = window.speechSynthesis.getVoices();
+
+      // Priority list of preferred voices (based on common high-quality voices)
+      const preferredVoices = [
+        'Google UK English Female',
+        'Microsoft Libby Online (Natural)',
+        'Microsoft Sarah Online (Natural)',
+        'Samantha',
+        'Karen',
+        'Moira',
+        'Microsoft Aria Online (Natural)'
+      ];
+
+      // Try to find a preferred voice
+      let selectedVoice = voices.find(voice =>
+        preferredVoices.includes(voice.name) &&
+        voice.lang.includes('en')
+      );
+
+      // Fallback to any good quality female English voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(voice =>
+          voice.name.includes('Female') &&
+          voice.lang.includes('en-US') &&
+          !voice.name.includes('Microsoft Zira')  // Avoid less natural voices
+        );
+      }
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+
+      // Add natural pauses at punctuation
+      utterance.text = text.replace(/([.,!?])\s*/g, '$1, ');
+
+      // Optional: Add event handlers for better control
+      utterance.onstart = () => {
+        console.log('Started speaking');
+      };
+
+      utterance.onend = () => {
+        console.log('Finished speaking');
+      };
+
+      window.speechSynthesis.speak(utterance);
     }
-  }, [speechSynthesis]);
+  };
+
+  const formatSpeechText = (message: Message): string => {
+    // Just read the main response message which now includes the source and summary
+    return message.content;
+  };
 
   const handleNewMessage = async (content: string) => {
     if (!content.trim()) return;
@@ -213,29 +281,25 @@ export default function ChatInterface({ onHighlightNodes, graphData = data }: Ch
       const analysisResult = await analyzeText(content, graphData);
       const analysis = JSON.parse(analysisResult);
 
-      // Send message to WebSocket server
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ text: content }));
-      }
-
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: analysis.message,
+        content: analysis.message, // This now contains the natural language response
         type: 'bot',
         timestamp: new Date(),
         status: 'sent',
-        summary: analysis.summary
+        summaries: analysis.summaries
       };
 
       setMessages(prev => [...prev, botMessage]);
 
-      // Speak the response
-      speakText(botMessage.content);
-
-      // Highlight relevant nodes
+      // First highlight the nodes
       if (analysis.relevantNodes && onHighlightNodes) {
         onHighlightNodes(analysis.relevantNodes);
       }
+
+      // Speak the natural language response
+      speakText(formatSpeechText(botMessage));
+
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -265,22 +329,22 @@ export default function ChatInterface({ onHighlightNodes, graphData = data }: Ch
             {messages.map((message) => (
               <div key={message.id} className={`message ${message.type}`}>
                 <p>{message.content}</p>
-                {message.summary && (
-                  <div className="summary bg-gray-800 rounded-lg p-4 mt-2">
-                    <h3 className="text-lg font-semibold text-white">{message.summary.title}</h3>
-                    <p className="text-gray-300 mt-2">{message.summary.content}</p>
+                {message.summaries?.map((summary, index) => (
+                  <div key={index} className="summary bg-gray-800 rounded-lg p-4 mt-2">
+                    <h3 className="text-lg font-semibold text-white">{summary.title}</h3>
+                    <p className="text-gray-300 mt-2">{summary.content}</p>
                     <div className="mt-2">
-                      <span className="text-blue-400">Source: {message.summary.source}</span>
+                      <span className="text-blue-400">Source: {summary.source}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {message.summary.topics.map(topic => (
+                      {summary.topics.map(topic => (
                         <span key={topic} className="bg-green-600 text-white px-2 py-1 rounded-full text-sm">
                           {topic}
                         </span>
                       ))}
                     </div>
                   </div>
-                )}
+                ))}
               </div>
             ))}
             <div ref={messagesEndRef} />
