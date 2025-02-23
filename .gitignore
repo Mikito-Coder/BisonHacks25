@@ -1,3 +1,4 @@
+frontend/ 
 # Environment variables
 .env
 .env.local
