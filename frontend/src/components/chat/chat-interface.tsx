@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { AudioLines, ArrowUp } from "lucide-react";
 import '@/styles/chat.scss';
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { analyzeText } from '@/services/openai';
+import { data } from '@/components/graph/data';
 
 // Define proper types for Speech Recognition
 interface SpeechRecognitionEvent extends Event {
@@ -41,9 +43,20 @@ interface Message {
   type: 'user' | 'bot';
   timestamp: Date;
   status?: 'sending' | 'sent' | 'error';
+  summary?: {
+    title: string;
+    content: string;
+    source: string;
+    topics: string[];
+  };
 }
 
-export default function ChatInterface() {
+interface ChatInterfaceProps {
+  onHighlightNodes?: (nodeIds: string[]) => void;
+  graphData?: any;
+}
+
+export default function ChatInterface({ onHighlightNodes, graphData = data }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -66,6 +79,8 @@ export default function ChatInterface() {
     "I'm here to help...",
   ];
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  const [speechSynthesis, setSpeechSynthesis] = useState<SpeechSynthesis | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -122,6 +137,12 @@ export default function ChatInterface() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSpeechSynthesis(window.speechSynthesis);
+    }
+  }, []);
+
   const playNextAudioChunk = async () => {
     if (!audioContextRef.current || !gainNodeRef.current) return;
 
@@ -167,6 +188,13 @@ export default function ChatInterface() {
     recognitionRef.current.start();
   };
 
+  const speakText = useCallback((text: string) => {
+    if (speechSynthesis) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    }
+  }, [speechSynthesis]);
+
   const handleNewMessage = async (content: string) => {
     if (!content.trim()) return;
 
@@ -179,10 +207,12 @@ export default function ChatInterface() {
     };
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
-
     setIsProcessing(true);
 
     try {
+      const analysisResult = await analyzeText(content, graphData);
+      const analysis = JSON.parse(analysisResult);
+
       // Send message to WebSocket server
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ text: content }));
@@ -190,12 +220,22 @@ export default function ChatInterface() {
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I'm processing your request...",
+        content: analysis.message,
         type: 'bot',
         timestamp: new Date(),
-        status: 'sent'
+        status: 'sent',
+        summary: analysis.summary
       };
+
       setMessages(prev => [...prev, botMessage]);
+
+      // Speak the response
+      speakText(botMessage.content);
+
+      // Highlight relevant nodes
+      if (analysis.relevantNodes && onHighlightNodes) {
+        onHighlightNodes(analysis.relevantNodes);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -223,9 +263,25 @@ export default function ChatInterface() {
         <div className="content">
           <div className="main">
             {messages.map((message) => (
-              <p key={message.id}>
-                {message.content}
-              </p>
+              <div key={message.id} className={`message ${message.type}`}>
+                <p>{message.content}</p>
+                {message.summary && (
+                  <div className="summary bg-gray-800 rounded-lg p-4 mt-2">
+                    <h3 className="text-lg font-semibold text-white">{message.summary.title}</h3>
+                    <p className="text-gray-300 mt-2">{message.summary.content}</p>
+                    <div className="mt-2">
+                      <span className="text-blue-400">Source: {message.summary.source}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {message.summary.topics.map(topic => (
+                        <span key={topic} className="bg-green-600 text-white px-2 py-1 rounded-full text-sm">
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
             <div ref={messagesEndRef} />
           </div>

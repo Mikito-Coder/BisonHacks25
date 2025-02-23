@@ -265,3 +265,25 @@
         background-color: transparent !important;
     }
 }
+
+.message {
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+
+  &.user {
+    background-color: rgba(96, 165, 250, 0.1);
+  }
+
+  &.bot {
+    background-color: rgba(74, 222, 128, 0.1);
+  }
+
+  .summary {
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.02);
+    }
+  }
+}
