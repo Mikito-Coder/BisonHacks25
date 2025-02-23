@@ -267,23 +267,164 @@
 }
 
 .message {
-  margin-bottom: 1rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-
-  &.user {
-    background-color: rgba(96, 165, 250, 0.1);
-  }
-
-  &.bot {
-    background-color: rgba(74, 222, 128, 0.1);
-  }
-
-  .summary {
-    transition: all 0.3s ease;
+  margin-bottom: 2rem;
+  perspective: 1000px;
+  
+  &.user-message {
+    animation: slideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     
-    &:hover {
-      transform: scale(1.02);
+    .content-wrapper {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.25));
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      box-shadow: 0 8px 32px -8px rgba(59, 130, 246, 0.3);
+      backdrop-filter: blur(12px);
+      transform-origin: right;
+      max-width: 85%;
+      margin-left: auto;
+      
+      &:hover {
+        transform: translateX(-4px) translateY(-2px);
+        border-color: rgba(59, 130, 246, 0.5);
+        box-shadow: 0 12px 40px -12px rgba(59, 130, 246, 0.4);
+      }
+    }
+  }
+
+  &.bot-message {
+    animation: slideRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    
+    .main-response {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.25));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      box-shadow: 0 8px 32px -8px rgba(16, 185, 129, 0.3);
+      backdrop-filter: blur(12px);
+      transform-origin: left;
+      max-width: 90%;
+      
+      &:hover {
+        transform: translateX(4px) translateY(-2px);
+        border-color: rgba(16, 185, 129, 0.5);
+        box-shadow: 0 12px 40px -12px rgba(16, 185, 129, 0.4);
+      }
+    }
+
+    .summary-card {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(75, 85, 99, 0.4);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.4);
+      transform-origin: top;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: cardAppear 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+      
+      &:hover {
+        transform: translateY(-4px) scale(1.02);
+        border-color: rgba(99, 102, 241, 0.6);
+        box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.5);
+      }
+
+      .header {
+        background: linear-gradient(to right, rgba(31, 41, 55, 0.7), rgba(17, 24, 39, 0.7));
+        border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+        padding: 1.25rem 1.5rem;
+
+        h3 {
+          font-weight: 700;
+          line-height: 1.4;
+          letter-spacing: -0.01em;
+        }
+      }
+
+      .content {
+        padding: 1.25rem 1.5rem;
+        line-height: 1.6;
+      }
+
+      .topic-tag {
+        background: rgba(22, 163, 74, 0.15);
+        border: 1px solid rgba(22, 163, 74, 0.3);
+        box-shadow: 0 2px 8px -2px rgba(22, 163, 74, 0.25);
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: rgba(22, 163, 74, 0.25);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px -4px rgba(22, 163, 74, 0.35);
+        }
+      }
+    }
+  }
+}
+
+@keyframes cardAppear {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(40px) rotateY(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-40px) rotateY(10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
+}
+
+// Add floating animation for cards
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+}
+
+// Add glass morphism effect
+.bg-gray-800\/80 {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.chat {
+  .content {
+    padding: 2rem;
+    
+    .main {
+      &::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.3);
+        border-radius: 4px;
+        
+        &:hover {
+          background: rgba(99, 102, 241, 0.4);
+        }
+      }
     }
   }
 }

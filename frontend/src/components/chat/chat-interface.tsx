@@ -327,24 +327,63 @@ export default function ChatInterface({ onHighlightNodes, graphData = data }: Ch
         <div className="content">
           <div className="main">
             {messages.map((message) => (
-              <div key={message.id} className={`message ${message.type}`}>
-                <p>{message.content}</p>
-                {message.summaries?.map((summary, index) => (
-                  <div key={index} className="summary bg-gray-800 rounded-lg p-4 mt-2">
-                    <h3 className="text-lg font-semibold text-white">{summary.title}</h3>
-                    <p className="text-gray-300 mt-2">{summary.content}</p>
-                    <div className="mt-2">
-                      <span className="text-blue-400">Source: {summary.source}</span>
+              <div key={message.id} className={`message ${message.type === 'bot' ? 'bot-message' : 'user-message'}`}>
+                {/* User message */}
+                {message.type === 'user' && (
+                  <div className="flex items-center justify-end mb-4">
+                    <div className="content-wrapper rounded-2xl px-6 py-3 max-w-[80%] transition-all duration-300">
+                      <p className="text-white text-lg">{message.content}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {summary.topics.map(topic => (
-                        <span key={topic} className="bg-green-600 text-white px-2 py-1 rounded-full text-sm">
-                          {topic}
-                        </span>
+                  </div>
+                )}
+
+                {/* Bot message */}
+                {message.type === 'bot' && (
+                  <div className="space-y-4">
+                    {/* Main response */}
+                    <div className="main-response rounded-2xl px-6 py-4 max-w-[85%] transition-all duration-300">
+                      <p className="text-white text-lg font-medium leading-relaxed">{message.content}</p>
+                    </div>
+
+                    {/* Article summaries */}
+                    <div className="space-y-4 mt-6">
+                      {message.summaries?.map((summary, index) => (
+                        <div key={index}
+                          className="summary-card rounded-xl overflow-hidden transition-all duration-500"
+                          style={{ animationDelay: `${index * 100}ms` }}>
+                          {/* Header */}
+                          <div className="header px-6 py-4">
+                            <h3 className="text-xl font-bold text-white mb-2">
+                              {summary.title}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-400 text-sm font-medium">
+                                {summary.source}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="px-6 py-4">
+                            <p className="text-gray-300 leading-relaxed">
+                              {summary.content}
+                            </p>
+
+                            {/* Topics */}
+                            <div className="flex flex-wrap gap-2 mt-4">
+                              {summary.topics.map(topic => (
+                                <span key={topic}
+                                  className="topic-tag px-4 py-1.5 rounded-full text-emerald-400 text-sm font-medium">
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             ))}
             <div ref={messagesEndRef} />

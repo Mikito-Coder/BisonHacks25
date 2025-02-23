@@ -168,44 +168,39 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
         z: node.z || 0
       };
 
-      // Fix the node in place
+      // Fix the node in place during animation
       node.fx = pos.x;
       node.fy = pos.y;
       node.fz = pos.z;
 
-      // Initial zoom out
+      // First zoom out quickly
       fgRef.current.cameraPosition(
-        { x: pos.x, y: pos.y, z: pos.z + 500 },
+        { x: pos.x, y: pos.y, z: pos.z + 1000 },
         { x: pos.x, y: pos.y, z: pos.z },
         0
       );
 
-      // Zoom in animation
+      // Then zoom in with animation
       setTimeout(() => {
-        fgRef.current?.cameraPosition(
-          { x: pos.x, y: pos.y, z: pos.z + 150 },
+        fgRef.current.cameraPosition(
+          { x: pos.x, y: pos.y, z: pos.z + 200 },
           { x: pos.x, y: pos.y, z: pos.z },
           1500
         );
 
-        // Start pulsing animation
-        let startTime = Date.now();
+        // Make node bigger and start pulsing
+        node.val = 100;
+
+        let frame = 0;
         const animate = () => {
-          const elapsedTime = Date.now() - startTime;
-          if (elapsedTime < 2000) { // 2 second animation
-            const scale = 1.5 + Math.sin(elapsedTime * 0.01) * 0.3;
+          frame++;
+          const scale = 1.5 + Math.sin(frame * 0.1) * 0.3;
 
-            // Update node size
-            node.val = 100 * scale;
+          if (node.__threeObj) {
+            node.__threeObj.scale.set(scale, scale, scale);
+          }
 
-            // Update node visual
-            if (node.__threeObj) {
-              node.__threeObj.scale.set(scale, scale, scale);
-            }
-
-            // Force graph update
-            fgRef.current?.refresh();
-
+          if (frame < 120) { // 2 seconds at 60fps
             requestAnimationFrame(animate);
           } else {
             // Reset node after animation
@@ -222,13 +217,12 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
     const highlightNodes = useCallback((nodeIds: string[]) => {
       if (!nodeIds.length) return;
 
-      // Find the article node
-      const articleNode = graphData.nodes.find(node =>
-        nodeIds.includes(node.id) &&
-        node.type === 'article'
+      // Find the main article node (first one)
+      const mainNode = graphData.nodes.find(node =>
+        nodeIds.includes(node.id) && node.type === 'article'
       );
 
-      if (articleNode) {
+      if (mainNode) {
         // Reset all nodes first
         graphData.nodes.forEach(node => {
           node.val = node.type === 'article' ? 35 : 40;
@@ -237,8 +231,12 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
           }
         });
 
-        // Highlight all relevant nodes
-        nodeIds.forEach(id => {
+        // Highlight only the main node and its direct connections
+        const connectedNodes = graphData.links
+          .filter(link => link.source === mainNode.id || link.target === mainNode.id)
+          .map(link => link.source === mainNode.id ? link.target : link.source);
+
+        [...new Set([mainNode.id, ...connectedNodes])].forEach(id => {
           const node = graphData.nodes.find(n => n.id === id);
           if (node) {
             node.val = node.type === 'article' ? 100 : 60;
@@ -248,13 +246,12 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
           }
         });
 
-        // Update state
+        // Update graph
         setGraphData({ ...graphData });
-        setHighlightedNodes(new Set(nodeIds));
-        setFocusedNode(articleNode);
+        setHighlightedNodes(new Set([mainNode.id, ...connectedNodes]));
 
-        // Focus on the article node
-        focusOnNode(articleNode);
+        // Focus on the main node
+        focusOnNode(mainNode);
       }
     }, [graphData, focusOnNode]);
 
@@ -365,7 +362,7 @@ export default React.forwardRef<{ highlightNodes: (nodeIds: string[]) => void }>
             onNodeClick={handleClick}
             nodeColor={getNodeColor}
             linkColor={(link: any) => colors.link[link.type === 'article-topic' ? 'topic' : 'source']}
-            linkWidth={focusedNode ? 0.2 : 0.6}
+            linkWidth={focusedNode ? 0.4 : 0.8}
             backgroundColor={colors.background}
             nodeVal={node => (highlightedNodes.has(node.id) ? 60 : node.val || 40)}
             nodeResolution={16} // Higher resolution for smoother nodes
