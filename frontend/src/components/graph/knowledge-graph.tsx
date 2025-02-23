@@ -1,103 +1,142 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
-import { NodeObject } from '3d-force-graph';
-import ForceGraph3D from '3d-force-graph';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import SpriteText from 'three-spritetext';
+import { data } from './data';
 
-const KnowledgeGraph: React.FC = () => {
-  const graphRef = useRef<any>(null);
-  const [isTextMode, setIsTextMode] = useState(false);
+// Dynamically import ForceGraph3D with no SSR
+const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), { ssr: false });
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const response = await fetch('/data.json');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+const colors = {
+  background: '#030712',
+  article: '#FF6B6B',     // For news articles
+  topic: '#4ADE80',       // For topics
+  source: '#60A5FA',      // For news sources
+  highlight: '#FDE047',   // For highlights
+  text: {
+    primary: '#f8fafc',
+    secondary: '#94a3b8'
+  },
+  link: {
+    default: 'rgba(148, 163, 184, 0.3)',
+    highlight: 'rgba(244, 63, 94, 0.6)'
+  }
+};
+
+const KnowledgeGraph = () => {
+  const fgRef = useRef();
+  const [focusedNode, setFocusedNode] = useState(null);
+
+  const graphData = useMemo(() => {
+    const nodes = [];
+    const links = [];
+    const articles = Object.entries(data.articles_metadata);
+    
+    // Create topics and sources maps
+    const topicsMap = new Map();
+    const sourcesMap = new Map();
+    
+    articles.forEach(([id, article]) => {
+      // Add topics
+      article.topics?.forEach(topic => {
+        if (!topicsMap.has(topic)) {
+          topicsMap.set(topic, {
+            id: `topic-${topic}`,
+            name: topic,
+            type: 'topic',
+            val: 40,
+            articles: new Set()
+          });
         }
-        const graphData = await response.json();
+        topicsMap.get(topic).articles.add(id);
+      });
 
-        const graph = new ForceGraph3D(graphRef.current)
-          .width(window.innerWidth)
-          .height(window.innerHeight)
-          .graphData(graphData)
-          .nodeThreeObject((node: NodeObject & { user: string; description: string }) => {
-            if (isTextMode) {
-              const sprite = new SpriteText(`${node.user}: ${node.description}`);
-              sprite.color = 'white';
-              sprite.textHeight = 8;
-              return sprite;
-            }
-            return null;
-          })
-          .nodeLabel((node: NodeObject & { user: string; description: string }) => `${node.user}: ${node.description}`)
-          .onNodeClick(node => console.log(`Clicked node: ${node.id}`))
-          .backgroundColor('#000011');
-
-        const handleResize = () => {
-          graph
-            .width(window.innerWidth)
-            .height(window.innerHeight);
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-          window.removeEventListener('resize', handleResize);
-          graph._destructor();
-        };
-      } catch (error) {
-        console.error('Error loading graph data:', error);
+      // Add sources
+      const source = article.source;
+      if (!sourcesMap.has(source)) {
+        sourcesMap.set(source, {
+          id: `source-${source}`,
+          name: source,
+          type: 'source',
+          val: 45,
+          articles: new Set()
+        });
       }
-    };
+      sourcesMap.get(source).articles.add(id);
+    });
 
-    loadData();
-  }, [isTextMode]);
+    // Add nodes and links
+    [...topicsMap.values(), ...sourcesMap.values()].forEach(node => {
+      nodes.push({
+        ...node,
+        articleCount: node.articles.size,
+        val: 40 + (node.articles.size * 3)
+      });
+    });
+
+    articles.forEach(([id, article]) => {
+      nodes.push({
+        id,
+        name: article.title,
+        type: 'article',
+        val: 35,
+        topics: article.topics?.length || 0
+      });
+
+      // Connect to topics and source
+      article.topics?.forEach(topic => {
+        links.push({
+          source: id,
+          target: `topic-${topic}`,
+          type: 'article-topic'
+        });
+      });
+
+      links.push({
+        source: id,
+        target: `source-${article.source}`,
+        type: 'article-source'
+      });
+    });
+
+    return { nodes, links };
+  }, []);
+
+  const handleClick = useCallback((node) => {
+    if (!node) return;
+    setFocusedNode(node);
+  }, []);
 
   return (
-    <div className="relative">
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-black/50 p-2 rounded-lg">
-        <label className="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isTextMode}
-            onChange={(e) => setIsTextMode(e.target.checked)}
-            className="sr-only"
-          />
-          <div className="relative w-11 h-6 bg-gray-400 rounded-full transition-colors duration-300 ease-in-out hover:bg-gray-500">
-            <div
-              className={`
-                absolute left-1 top-1/2 -translate-y-1/2
-                w-4 h-4 bg-black rounded-full 
-                transform transition-all duration-300 ease-in-out shadow-md
-                ${isTextMode ? 'translate-x-5' : 'translate-x-0'}
-              `}
-            />
-            <div
-              className={`
-                absolute inset-0 rounded-full
-                transition-colors duration-300 ease-in-out
-                ${isTextMode ? 'bg-blue-600' : ''}
-              `}
-            />
-          </div>
-          <span className="ml-3 text-sm font-medium text-white select-none">
-            {isTextMode ? 'Text Mode' : 'Default Mode'}
-          </span>
-        </label>
-      </div>
-      <div
-        ref={graphRef}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          background: '#000011'
+    <div className="force-graph" style={{ width: '100%', height: '100vh' }}>
+      <ForceGraph3D
+        ref={fgRef}
+        graphData={graphData}
+        nodeThreeObject={node => {
+          const sprite = new SpriteText(node.name);
+          sprite.color = focusedNode?.id === node.id ? colors.highlight : colors.text.primary;
+          sprite.textHeight = node.type === 'article' ? 8 : 12;
+          sprite.backgroundColor = 
+            focusedNode?.id === node.id ? 'rgba(253, 224, 71, 0.3)' :
+            node.type === 'article' ? 'rgba(255, 107, 107, 0.2)' :
+            node.type === 'topic' ? 'rgba(74, 222, 128, 0.2)' :
+            'rgba(96, 165, 250, 0.2)';
+          return sprite;
         }}
+        nodeColor={node => colors[node.type] || colors.text.primary}
+        linkColor={link => link.type === 'article-topic' ? colors.topic : colors.source}
+        backgroundColor={colors.background}
+        onNodeClick={handleClick}
       />
+      {focusedNode && (
+        <InfoPanel 
+          node={focusedNode} 
+          onClose={() => setFocusedNode(null)}
+          data={data}
+          onArticleClick={handleClick}
+        />
+      )}
     </div>
   );
 };
