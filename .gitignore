@@ -1,3 +1,5 @@
+frontend/ 
+
 # Environment variables
 .env
 .env.local
@@ -33,11 +35,6 @@ yarn-error.log*
 .netlify
 
 # Python
-backend/__pycache__/
-backend/*.py[cod]
-backend/*$py.class
-backend/venv/
-backend/.env
 
 # IDE
 .vscode/
